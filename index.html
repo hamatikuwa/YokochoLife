@@ -107,7 +107,10 @@ html, body {
   position: relative; flex: none; width: 84px; height: 108px; border-radius: 10px;
   border: 3px solid rgba(255,214,120,0.9);
   box-shadow: 0 0 0 2px rgba(0,0,0,0.55), 0 4px 14px rgba(0,0,0,0.55);
-  pointer-events: none;
+  pointer-events: none; overflow: hidden; background: #1a1622;
+}
+.faceCamImg {
+  width: 100%; height: 100%; object-fit: cover; display: block;
 }
 .faceCamRec {
   position: absolute; top: -9px; left: 6px; font-size: 9px; font-weight: bold;
@@ -221,6 +224,7 @@ html, body {
   <div id="controlDeck" class="controlDeck">
     <div class="deckLeft">
       <div id="faceCam" class="faceCam">
+        <img id="faceCamImg" class="faceCamImg" alt="ツトム">
         <span class="faceCamRec">● REC</span>
       </div>
       <div id="dpad" class="dpad">
@@ -384,13 +388,15 @@ function addBoxCollider(cx, cz, halfW, halfD) {
 // World geometry: the narrow yokocho alley
 // ---------------------------------------------------------------
 const HALF_WIDTH = 2.25;
+// kept gentle on purpose (small X offsets) so the corridor stays visible in a
+// straight sightline -- shops must never end up hidden around a tight bend
 const curve = new THREE.CatmullRomCurve3([
   new THREE.Vector3(0, 0, 0),
-  new THREE.Vector3(1.4, 0, -11),
-  new THREE.Vector3(-1.6, 0, -23),
-  new THREE.Vector3(2.1, 0, -35),
-  new THREE.Vector3(-1.1, 0, -47),
-  new THREE.Vector3(1.6, 0, -58),
+  new THREE.Vector3(0.4, 0, -11),
+  new THREE.Vector3(-0.5, 0, -23),
+  new THREE.Vector3(0.6, 0, -35),
+  new THREE.Vector3(-0.3, 0, -47),
+  new THREE.Vector3(0.5, 0, -58),
   new THREE.Vector3(0, 0, -66),
 ], false, 'catmullrom', 0.5);
 
@@ -736,37 +742,11 @@ function playerForward() {
 }
 
 // ---------------------------------------------------------------
-// Face cam: a second camera that always frames the player's face
-// head-on, rendered as a small wipe above the D-pad.
+// Face cam wipe: just the raw photo dropped into the frame -- a 3D
+// render of the head looked too dark/muddy to read at thumbnail size.
 // ---------------------------------------------------------------
-const faceCamEl = document.getElementById('faceCam');
-const faceCamera = new THREE.PerspectiveCamera(38, 1, 0.05, 4);
-function updateFaceCamera() {
-  const fx = Math.sin(player.yaw), fz = Math.cos(player.yaw);
-  const headX = player.x + fx * 0.17, headZ = player.z + fz * 0.17, headY = player.y + 1.55;
-  const dist = 0.85;
-  faceCamera.position.set(headX + fx * dist, headY, headZ + fz * dist);
-  faceCamera.lookAt(headX, headY, headZ);
-}
-function renderFaceCam() {
-  const rect = faceCamEl.getBoundingClientRect();
-  if (rect.width < 1 || rect.height < 1) return;
-  updateFaceCamera();
-  // three.js setViewport/setScissor multiply by the renderer's pixel ratio internally,
-  // so these must be CSS pixels, not device pixels (do NOT pre-multiply by devicePixelRatio).
-  const cssH = renderer.domElement.clientHeight;
-  const x = rect.left;
-  const y = cssH - rect.top - rect.height;
-  const w = rect.width, h = rect.height;
-  faceCamera.aspect = w / h;
-  faceCamera.updateProjectionMatrix();
-  renderer.setScissorTest(true);
-  renderer.setViewport(x, y, w, h);
-  renderer.setScissor(x, y, w, h);
-  renderer.render(scene, faceCamera);
-  renderer.setScissorTest(false);
-  renderer.setViewport(0, 0, renderer.domElement.clientWidth, renderer.domElement.clientHeight);
-}
+const faceCamImgEl = document.getElementById('faceCamImg');
+if (TSUTOMU_FACE_DATA_URI) faceCamImgEl.src = TSUTOMU_FACE_DATA_URI;
 
 // ---------------------------------------------------------------
 // NPCs
@@ -796,13 +776,13 @@ const uBar = 0.48;
 const uToilet = 0.74;
 
 const karaokeFrame = pathFrame(uKaraoke);
-const karaokePos = karaokeFrame.p.clone().addScaledVector(karaokeFrame.right, -(HALF_WIDTH + 0.9));
-hotspots.push({ x: karaokePos.x, z: karaokePos.z, r: 1.6, type: 'karaoke', label: 'Aボタン: からおけスナックに入る', cooldown: 0 });
+const karaokePos = karaokeFrame.p.clone().addScaledVector(karaokeFrame.right, -(HALF_WIDTH + 0.4));
+hotspots.push({ x: karaokePos.x, z: karaokePos.z, r: 1.6, type: 'karaoke', label: 'からおけスナック「まり子」', cooldown: 0 });
 const oldman = spawnNpc(karaokePos.x + 0.6, karaokePos.z + 0.4, 'oldman');
 
 const barFrame = pathFrame(uBar);
-const barPos = barFrame.p.clone().addScaledVector(barFrame.right, (HALF_WIDTH + 0.9));
-hotspots.push({ x: barPos.x, z: barPos.z, r: 1.7, type: 'bar', label: 'Aボタン: チンピラに声をかける', cooldown: 0 });
+const barPos = barFrame.p.clone().addScaledVector(barFrame.right, (HALF_WIDTH + 0.4));
+hotspots.push({ x: barPos.x, z: barPos.z, r: 1.7, type: 'bar', label: 'ぼったくりBAR「魔界」', cooldown: 0 });
 const thug1 = spawnNpc(barPos.x - 0.5, barPos.z + 0.5, 'thug');
 const thug2 = spawnNpc(barPos.x + 0.5, barPos.z + 0.7, 'thug');
 thug1.homeHotspot = thug2.homeHotspot = hotspots[hotspots.length - 1];
@@ -813,11 +793,11 @@ const clubPropMesh = makeClub();
 clubPropMesh.rotation.x = Math.PI / 2;
 clubPropMesh.position.set(clubPickupPos.x, 0.06, clubPickupPos.z);
 scene.add(clubPropMesh);
-hotspots.push({ x: clubPickupPos.x, z: clubPickupPos.z, r: 1.0, type: 'club', label: 'Aボタン: 角材を拾う', cooldown: 0 });
+hotspots.push({ x: clubPickupPos.x, z: clubPickupPos.z, r: 1.0, type: 'club', label: '角材が落ちている', cooldown: 0 });
 
 // public toilet nook
 const toiletFrame = pathFrame(uToilet);
-const toiletPos = toiletFrame.p.clone().addScaledVector(toiletFrame.right, -(HALF_WIDTH + 0.9));
+const toiletPos = toiletFrame.p.clone().addScaledVector(toiletFrame.right, -(HALF_WIDTH + 0.4));
 (function buildToilet() {
   const g = new THREE.Group();
   g.position.set(toiletPos.x, 0, toiletPos.z);
@@ -830,7 +810,7 @@ const toiletPos = toiletFrame.p.clone().addScaledVector(toiletFrame.right, -(HAL
   scene.add(g);
   addBoxCollider(toiletPos.x, toiletPos.z, 0.6, 0.6);
 })();
-hotspots.push({ x: toiletPos.x, z: toiletPos.z - 1.1, r: 1.3, type: 'toilet', label: 'Aボタン: トイレを借りる', cooldown: 0 });
+hotspots.push({ x: toiletPos.x, z: toiletPos.z - 1.1, r: 1.3, type: 'toilet', label: '公衆トイレ', cooldown: 0 });
 
 // decorative staircase nook (visual reference to the source alley, non-walkable)
 (function buildStairsDecor() {
@@ -975,11 +955,14 @@ function doAction() {
     return;
   }
   if (currentHotspot.cooldown > 0) { toast('少し時間をおいてからにしよう…'); return; }
+  triggerHotspot(currentHotspot);
+}
 
-  if (currentHotspot.type === 'karaoke') openKaraoke();
-  else if (currentHotspot.type === 'bar') openBar();
-  else if (currentHotspot.type === 'club') pickupClub();
-  else if (currentHotspot.type === 'toilet') useToilet();
+function triggerHotspot(hs) {
+  if (hs.type === 'karaoke') openKaraoke();
+  else if (hs.type === 'bar') openBar();
+  else if (hs.type === 'club') pickupClub();
+  else if (hs.type === 'toilet') useToilet();
 }
 
 function pickupClub() {
@@ -1201,7 +1184,7 @@ function updatePlayer(dt) {
 
   const moving = len > 0.08 && !state.busy;
   const fwd = playerForward();
-  const rightV = new THREE.Vector3(fwd.z, 0, -fwd.x);
+  const rightV = new THREE.Vector3(-fwd.z, 0, fwd.x);
   let dirX = 0, dirZ = 0;
   if (moving) {
     dirX = rightV.x * mx - fwd.x * my;
@@ -1358,9 +1341,17 @@ function updateLanterns(t) {
   }
 }
 
+let lastHotspot = null;
 function updateHotspotPrompt() {
   if (state.brawl) { promptBox.classList.add('hidden'); actionBtn.textContent = '殴る'; return; }
   currentHotspot = findNearestHotspot();
+  // touching a hotspot (walking into its radius) fires it automatically --
+  // no button press needed. Only fires on the outside->inside transition so
+  // it doesn't repeat every frame while the player just stands there.
+  if (currentHotspot && currentHotspot !== lastHotspot && currentHotspot.cooldown <= 0 && !state.busy) {
+    triggerHotspot(currentHotspot);
+  }
+  lastHotspot = currentHotspot;
   if (state.busy) { promptBox.classList.add('hidden'); return; }
   if (currentHotspot && currentHotspot.cooldown <= 0) {
     promptBox.textContent = currentHotspot.label;
@@ -1404,7 +1395,6 @@ function animate() {
   if (!karaokeUI.classList.contains('hidden')) updateKaraoke(dt);
 
   renderer.render(scene, camera);
-  renderFaceCam();
 }
 animate();
 
