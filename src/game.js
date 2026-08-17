@@ -256,16 +256,24 @@ const hotspots = []; // {x,z,r,label,type,data}
 const npcs = [];
 const streetLanterns = [];
 
+// reserved along the path for the special karaoke/bar/toilet spots below --
+// buildShops() skips generating a generic shop there so nothing overlaps it
+const uKaraoke = 0.09, uKaraokeSide = -1;
+const uBar = 0.48, uBarSide = 1;
+const uToilet = 0.74, uToiletSide = -1;
+
 (function buildShops() {
   const spacing = 3.6;
   const count = Math.floor(ALLEY_LEN / spacing);
   let signIdx = 0;
+  const reserved = [[uKaraoke, uKaraokeSide], [uBar, uBarSide], [uToilet, uToiletSide]];
 
   for (let i = 1; i < count - 1; i++) {
     const u = i / count;
     const { p, tan, right } = pathFrame(u);
 
     [-1, 1].forEach(side => {
+      if (reserved.some(([ru, rs]) => rs === side && Math.abs(u - ru) < 1.5 / count)) return;
       const depth = rand(2.6, 4.2);
       const width = spacing * 0.94;
       const height = rand(6, 10.5);
@@ -478,17 +486,13 @@ function spawnNpc(x, z, kind) {
 // ---------------------------------------------------------------
 // Hotspots: karaoke / bar / toilet / club pickup
 // ---------------------------------------------------------------
-const uKaraoke = 0.09;
-const uBar = 0.48;
-const uToilet = 0.74;
-
 const karaokeFrame = pathFrame(uKaraoke);
-const karaokePos = karaokeFrame.p.clone().addScaledVector(karaokeFrame.right, -(HALF_WIDTH + 0.4));
+const karaokePos = karaokeFrame.p.clone().addScaledVector(karaokeFrame.right, -(HALF_WIDTH - 0.6));
 hotspots.push({ x: karaokePos.x, z: karaokePos.z, r: 1.6, type: 'karaoke', label: 'からおけスナック「まり子」', cooldown: 0 });
 const oldman = spawnNpc(karaokePos.x + 0.6, karaokePos.z + 0.4, 'oldman');
 
 const barFrame = pathFrame(uBar);
-const barPos = barFrame.p.clone().addScaledVector(barFrame.right, (HALF_WIDTH + 0.4));
+const barPos = barFrame.p.clone().addScaledVector(barFrame.right, (HALF_WIDTH - 0.6));
 hotspots.push({ x: barPos.x, z: barPos.z, r: 1.7, type: 'bar', label: 'ぼったくりBAR「魔界」', cooldown: 0 });
 const thug1 = spawnNpc(barPos.x - 0.5, barPos.z + 0.5, 'thug');
 const thug2 = spawnNpc(barPos.x + 0.5, barPos.z + 0.7, 'thug');
@@ -504,7 +508,7 @@ hotspots.push({ x: clubPickupPos.x, z: clubPickupPos.z, r: 1.0, type: 'club', la
 
 // public toilet nook
 const toiletFrame = pathFrame(uToilet);
-const toiletPos = toiletFrame.p.clone().addScaledVector(toiletFrame.right, -(HALF_WIDTH + 0.4));
+const toiletPos = toiletFrame.p.clone().addScaledVector(toiletFrame.right, -(HALF_WIDTH + 0.9));
 (function buildToilet() {
   const g = new THREE.Group();
   g.position.set(toiletPos.x, 0, toiletPos.z);
@@ -517,7 +521,7 @@ const toiletPos = toiletFrame.p.clone().addScaledVector(toiletFrame.right, -(HAL
   scene.add(g);
   addBoxCollider(toiletPos.x, toiletPos.z, 0.6, 0.6);
 })();
-hotspots.push({ x: toiletPos.x, z: toiletPos.z - 1.1, r: 1.3, type: 'toilet', label: '公衆トイレ', cooldown: 0 });
+hotspots.push({ x: toiletPos.x, z: toiletPos.z - 1.2, r: 1.3, type: 'toilet', label: '公衆トイレ', cooldown: 0 });
 
 // decorative staircase nook (visual reference to the source alley, non-walkable)
 (function buildStairsDecor() {
@@ -680,10 +684,23 @@ function pickupClub() {
   toast('角材を拾った。護身用にどうぞ');
 }
 
+const poopFlashEl = document.getElementById('poopFlash');
+let poopFlashTimer = null;
+function showPoopFlash() {
+  poopFlashEl.classList.remove('hidden');
+  // restart the CSS animation from frame 0 even if it's already mid-play
+  poopFlashEl.style.animation = 'none';
+  void poopFlashEl.offsetWidth;
+  poopFlashEl.style.animation = '';
+  clearTimeout(poopFlashTimer);
+  poopFlashTimer = setTimeout(() => poopFlashEl.classList.add('hidden'), 2000);
+}
+
 function useToilet() {
   state.pee = 0;
   updateHud();
   toast('スッキリ…！生き返る〜');
+  showPoopFlash();
 }
 
 function doFieldRelief() {
@@ -691,6 +708,7 @@ function doFieldRelief() {
   updateHud();
   toast('我慢できず物陰でスッキリ…近所の評判が少し下がった気がする', 2.6);
   spawnPoofEffect(player.x, player.z);
+  showPoopFlash();
 }
 
 function spawnPoofEffect(x, z) {
