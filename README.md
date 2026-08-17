@@ -25,3 +25,7 @@ python3 -m http.server 8000
 - `build.py` — `src/` の内容を結合して `index.html` を再生成するスクリプト
 
 `src/` 配下を編集したら、必ず `python3 build.py` を実行してから公開用 `index.html` をコミットしてください。
+
+## 公開URL
+
+https://hamatikuwa.github.io/YokochoLife/
