@@ -23,6 +23,13 @@ function onResize() {
   camera.aspect = innerWidth / innerHeight;
   camera.updateProjectionMatrix();
   renderer.setSize(innerWidth, innerHeight);
+  updateDeckHeightVar();
+}
+function updateDeckHeightVar() {
+  const deck = document.getElementById('controlDeck');
+  if (deck && deck.offsetHeight > 0) {
+    document.documentElement.style.setProperty('--deckH', deck.offsetHeight + 'px');
+  }
 }
 addEventListener('resize', onResize);
 onResize();
@@ -1119,6 +1126,7 @@ document.getElementById('startBtn').addEventListener('pointerdown', () => {
   document.getElementById('titleScreen').classList.add('hidden');
   document.getElementById('hud').classList.remove('hidden');
   document.getElementById('touchLayer').classList.remove('hidden');
+  updateDeckHeightVar();
   updateHud();
   toast('よいよい爺やチンピラに近づいてAボタン！', 3);
 });

@@ -39,20 +39,27 @@
   <div id="promptBox" class="promptBox hidden"></div>
 </div>
 
-<!-- touch controls -->
+<!-- touch controls: top = camera-drag over the 3D view, bottom = a dedicated,
+     fully opaque control deck so buttons can never lose touches to the look-drag layer -->
 <div id="touchLayer" class="hidden">
-  <div id="faceCam" class="faceCam">
-    <span class="faceCamRec">● REC</span>
-  </div>
-  <div id="dpad" class="dpad">
-    <button id="dpadUp" class="dpadBtn dpadUp">▲</button>
-    <button id="dpadLeft" class="dpadBtn dpadLeft">◀</button>
-    <button id="dpadRight" class="dpadBtn dpadRight">▶</button>
-    <button id="dpadDown" class="dpadBtn dpadDown">▼</button>
-  </div>
   <div id="lookPad"></div>
-  <button id="actionBtn" class="roundBtn actionBtn">話す</button>
-  <button id="jumpBtn" class="roundBtn jumpBtn">跳</button>
+  <div id="controlDeck" class="controlDeck">
+    <div class="deckLeft">
+      <div id="faceCam" class="faceCam">
+        <span class="faceCamRec">● REC</span>
+      </div>
+      <div id="dpad" class="dpad">
+        <button id="dpadUp" class="dpadBtn dpadUp">▲</button>
+        <button id="dpadLeft" class="dpadBtn dpadLeft">◀</button>
+        <button id="dpadRight" class="dpadBtn dpadRight">▶</button>
+        <button id="dpadDown" class="dpadBtn dpadDown">▼</button>
+      </div>
+    </div>
+    <div class="deckRight">
+      <button id="jumpBtn" class="roundBtn jumpBtn">跳</button>
+      <button id="actionBtn" class="roundBtn actionBtn">話す</button>
+    </div>
+  </div>
 </div>
 
 <!-- karaoke minigame -->
