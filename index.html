@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<title>よっぱらい横丁</title>
+<title>ツトムの挑戦状〜地獄谷商店街の夕日〜</title>
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <style>
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -72,18 +72,40 @@ html, body {
 /* ---------- Touch controls ---------- */
 #touchLayer { position: fixed; inset: 0; z-index: 25; pointer-events: none; }
 #lookPad { position: absolute; inset: 0; right: 0; pointer-events: auto; }
-.joyBase {
-  position: absolute; left: max(24px, env(safe-area-inset-left));
-  bottom: max(28px, env(safe-area-inset-bottom));
-  width: 108px; height: 108px; border-radius: 50%;
-  background: rgba(255,255,255,0.08); border: 2px solid rgba(255,255,255,0.25);
-  pointer-events: auto;
+
+/* ---------- D-pad (replaces the old analog stick; iOS had trouble with drag-based sticks) ---------- */
+.dpad {
+  position: absolute; left: max(20px, env(safe-area-inset-left));
+  bottom: max(24px, env(safe-area-inset-bottom));
+  width: 152px; height: 152px;
 }
-.joyKnob {
-  position: absolute; left: 50%; top: 50%; width: 48px; height: 48px; border-radius: 50%;
-  background: rgba(255,255,255,0.4); border: 2px solid rgba(255,255,255,0.6);
-  transform: translate(-50%,-50%);
+.dpadBtn {
+  position: absolute; width: 50px; height: 50px; border-radius: 12px;
+  background: rgba(255,255,255,0.12); border: 2px solid rgba(255,255,255,0.3);
+  color: #fff; font-size: 18px; line-height: 1; pointer-events: auto;
 }
+.dpadBtn:active { background: rgba(255,255,255,0.32); }
+.dpadUp { top: 0; left: 51px; }
+.dpadDown { bottom: 0; left: 51px; }
+.dpadLeft { left: 0; top: 51px; }
+.dpadRight { right: 0; top: 51px; }
+
+/* ---------- Face cam wipe: keeps a straight-on shot of the character above the D-pad ---------- */
+.faceCam {
+  position: absolute; left: max(20px, env(safe-area-inset-left));
+  bottom: calc(max(24px, env(safe-area-inset-bottom)) + 166px);
+  width: 104px; height: 132px; border-radius: 10px;
+  border: 3px solid rgba(255,214,120,0.9);
+  box-shadow: 0 0 0 2px rgba(0,0,0,0.55), 0 4px 14px rgba(0,0,0,0.55);
+  pointer-events: none;
+}
+.faceCamRec {
+  position: absolute; top: -9px; left: 6px; font-size: 9px; font-weight: bold;
+  color: #ff5a4a; background: rgba(10,10,20,0.85); padding: 1px 5px; border-radius: 6px;
+  letter-spacing: 0.5px; animation: recBlink 1.4s ease-in-out infinite;
+}
+@keyframes recBlink { 0%,100%{opacity:1;} 50%{opacity:0.35;} }
+
 .roundBtn {
   position: absolute; border-radius: 50%; border: 2px solid rgba(255,255,255,0.35);
   background: rgba(255,120,60,0.35); color: #fff; font-size: 14px; font-weight: bold;
@@ -153,8 +175,8 @@ html, body {
 
 <div id="titleScreen">
   <div class="titleCard">
-    <h1>よっぱらい横丁</h1>
-    <p class="sub">〜まったり夜の裏路地くらし〜</p>
+    <h1>ツトムの挑戦状</h1>
+    <p class="sub">〜地獄谷商店街の夕日〜</p>
     <div class="titleDesc">
       裏路地のスナックとぼったくりバーを切り盛りしながら、<br>
       よいよい爺の相手をしたり、チンピラと角材で殴り合ったり、<br>
@@ -183,8 +205,14 @@ html, body {
 
 <!-- touch controls -->
 <div id="touchLayer" class="hidden">
-  <div id="joyBase" class="joyBase">
-    <div id="joyKnob" class="joyKnob"></div>
+  <div id="faceCam" class="faceCam">
+    <span class="faceCamRec">● REC</span>
+  </div>
+  <div id="dpad" class="dpad">
+    <button id="dpadUp" class="dpadBtn dpadUp">▲</button>
+    <button id="dpadLeft" class="dpadBtn dpadLeft">◀</button>
+    <button id="dpadRight" class="dpadBtn dpadRight">▶</button>
+    <button id="dpadDown" class="dpadBtn dpadDown">▼</button>
   </div>
   <div id="lookPad"></div>
   <button id="actionBtn" class="roundBtn actionBtn">話す</button>
@@ -611,6 +639,16 @@ function makeCharacter(skin) {
   const head = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.32, 0.32), flatMat(skin.skin));
   head.position.y = 1.55; body.add(head);
 
+  let facePlane = null;
+  if (skin.faceTexture) {
+    facePlane = new THREE.Mesh(
+      new THREE.PlaneGeometry(0.3, 0.3),
+      new THREE.MeshBasicMaterial({ map: skin.faceTexture })
+    );
+    facePlane.position.set(0, 1.55, 0.17);
+    body.add(facePlane);
+  }
+
   const hair = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.14, 0.34), flatMat(skin.hair));
   hair.position.y = 1.68; body.add(hair);
 
@@ -632,7 +670,16 @@ function makeCharacter(skin) {
   handAttach.position.set(0, -0.5, 0.05);
   rightArm.add(handAttach);
 
-  return { group: g, body, leftArm, rightArm, leftLeg, rightLeg, handAttach, head };
+  return { group: g, body, leftArm, rightArm, leftLeg, rightLeg, handAttach, head, facePlane };
+}
+
+// Tsutomu's face photo. Paste a data:image/... URI here to put his real face on the
+// player model and in the face-cam wipe; leave empty to fall back to a flat skin tone.
+const TSUTOMU_FACE_DATA_URI = "";
+let tsutomuFaceTexture = null;
+if (TSUTOMU_FACE_DATA_URI) {
+  tsutomuFaceTexture = new THREE.TextureLoader().load(TSUTOMU_FACE_DATA_URI);
+  tsutomuFaceTexture.encoding = THREE.sRGBEncoding;
 }
 
 const CLUB_GEO = new THREE.CylinderGeometry(0.05, 0.06, 0.85, 6);
@@ -652,7 +699,7 @@ const player = {
   hasClub: false, clubMesh: null,
   attackCd: 0, attackSwing: 0,
 };
-const playerChar = makeCharacter({ shirt: 0xcf5a3a, pants: 0x2a2a3a, skin: 0xe8b98a, hair: 0x1a1a1a });
+const playerChar = makeCharacter({ shirt: 0xcf5a3a, pants: 0x2a2a3a, skin: 0xe8b98a, hair: 0x1a1a1a, faceTexture: tsutomuFaceTexture });
 scene.add(playerChar.group);
 
 let camYaw = Math.PI;
@@ -661,6 +708,39 @@ const camDist = 4.4, camHeight = 2.0;
 
 function playerForward() {
   return new THREE.Vector3(Math.sin(camYaw), 0, Math.cos(camYaw));
+}
+
+// ---------------------------------------------------------------
+// Face cam: a second camera that always frames the player's face
+// head-on, rendered as a small wipe above the D-pad.
+// ---------------------------------------------------------------
+const faceCamEl = document.getElementById('faceCam');
+const faceCamera = new THREE.PerspectiveCamera(38, 1, 0.05, 4);
+function updateFaceCamera() {
+  const fx = Math.sin(player.yaw), fz = Math.cos(player.yaw);
+  const headX = player.x + fx * 0.17, headZ = player.z + fz * 0.17, headY = player.y + 1.55;
+  const dist = 0.85;
+  faceCamera.position.set(headX + fx * dist, headY, headZ + fz * dist);
+  faceCamera.lookAt(headX, headY, headZ);
+}
+function renderFaceCam() {
+  const rect = faceCamEl.getBoundingClientRect();
+  if (rect.width < 1 || rect.height < 1) return;
+  updateFaceCamera();
+  // three.js setViewport/setScissor multiply by the renderer's pixel ratio internally,
+  // so these must be CSS pixels, not device pixels (do NOT pre-multiply by devicePixelRatio).
+  const cssH = renderer.domElement.clientHeight;
+  const x = rect.left;
+  const y = cssH - rect.top - rect.height;
+  const w = rect.width, h = rect.height;
+  faceCamera.aspect = w / h;
+  faceCamera.updateProjectionMatrix();
+  renderer.setScissorTest(true);
+  renderer.setViewport(x, y, w, h);
+  renderer.setScissor(x, y, w, h);
+  renderer.render(scene, faceCamera);
+  renderer.setScissorTest(false);
+  renderer.setViewport(0, 0, renderer.domElement.clientWidth, renderer.domElement.clientHeight);
 }
 
 // ---------------------------------------------------------------
@@ -774,42 +854,26 @@ function clampToWorld(pos) {
 }
 
 // ---------------------------------------------------------------
-// Input: touch joystick + look pad + buttons + keyboard
+// Input: D-pad + look pad + buttons + keyboard
 // ---------------------------------------------------------------
-const input = { moveX: 0, moveY: 0, action: false, jump: false };
+const input = { action: false, jump: false };
 const keys = {};
 addEventListener('keydown', e => { keys[e.code] = true; });
 addEventListener('keyup', e => { keys[e.code] = false; });
 
-const joyBase = document.getElementById('joyBase');
-const joyKnob = document.getElementById('joyKnob');
-let joyId = null, joyCenter = { x: 0, y: 0 };
-const JOY_R = 46;
-
-function joyStart(e) {
-  if (joyId !== null) return;
-  joyId = e.pointerId;
-  const r = joyBase.getBoundingClientRect();
-  joyCenter = { x: r.left + r.width / 2, y: r.top + r.height / 2 };
-  try { joyBase.setPointerCapture(joyId); } catch (err) {}
+const dpad = { up: false, down: false, left: false, right: false };
+function bindDpadBtn(id, key) {
+  const el = document.getElementById(id);
+  const set = v => e => { e.preventDefault(); dpad[key] = v; };
+  el.addEventListener('pointerdown', set(true));
+  el.addEventListener('pointerup', set(false));
+  el.addEventListener('pointercancel', set(false));
+  el.addEventListener('pointerleave', set(false));
 }
-function joyMove(e) {
-  if (e.pointerId !== joyId) return;
-  let dx = e.clientX - joyCenter.x, dy = e.clientY - joyCenter.y;
-  const len = Math.hypot(dx, dy);
-  if (len > JOY_R) { dx = dx / len * JOY_R; dy = dy / len * JOY_R; }
-  joyKnob.style.transform = `translate(-50%,-50%) translate(${dx}px,${dy}px)`;
-  input.moveX = dx / JOY_R; input.moveY = dy / JOY_R;
-}
-function joyEnd(e) {
-  if (e.pointerId !== joyId) return;
-  joyId = null; input.moveX = 0; input.moveY = 0;
-  joyKnob.style.transform = 'translate(-50%,-50%)';
-}
-joyBase.addEventListener('pointerdown', joyStart);
-joyBase.addEventListener('pointermove', joyMove);
-joyBase.addEventListener('pointerup', joyEnd);
-joyBase.addEventListener('pointercancel', joyEnd);
+bindDpadBtn('dpadUp', 'up');
+bindDpadBtn('dpadDown', 'down');
+bindDpadBtn('dpadLeft', 'left');
+bindDpadBtn('dpadRight', 'right');
 
 const lookPad = document.getElementById('lookPad');
 let lookId = null, lastLook = { x: 0, y: 0 };
@@ -1102,11 +1166,11 @@ const clock = new THREE.Clock();
 let walkT = 0;
 
 function updatePlayer(dt) {
-  let mx = input.moveX, my = input.moveY;
-  if (keys['KeyW'] || keys['ArrowUp']) my -= 1;
-  if (keys['KeyS'] || keys['ArrowDown']) my += 1;
-  if (keys['KeyA'] || keys['ArrowLeft']) mx -= 1;
-  if (keys['KeyD'] || keys['ArrowRight']) mx += 1;
+  let mx = 0, my = 0;
+  if (keys['KeyW'] || keys['ArrowUp'] || dpad.up) my -= 1;
+  if (keys['KeyS'] || keys['ArrowDown'] || dpad.down) my += 1;
+  if (keys['KeyA'] || keys['ArrowLeft'] || dpad.left) mx -= 1;
+  if (keys['KeyD'] || keys['ArrowRight'] || dpad.right) mx += 1;
   const len = Math.hypot(mx, my);
   if (len > 1) { mx /= len; my /= len; }
 
@@ -1315,6 +1379,7 @@ function animate() {
   if (!karaokeUI.classList.contains('hidden')) updateKaraoke(dt);
 
   renderer.render(scene, camera);
+  renderFaceCam();
 }
 animate();
 

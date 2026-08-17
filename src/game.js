@@ -368,6 +368,16 @@ function makeCharacter(skin) {
   const head = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.32, 0.32), flatMat(skin.skin));
   head.position.y = 1.55; body.add(head);
 
+  let facePlane = null;
+  if (skin.faceTexture) {
+    facePlane = new THREE.Mesh(
+      new THREE.PlaneGeometry(0.3, 0.3),
+      new THREE.MeshBasicMaterial({ map: skin.faceTexture })
+    );
+    facePlane.position.set(0, 1.55, 0.17);
+    body.add(facePlane);
+  }
+
   const hair = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.14, 0.34), flatMat(skin.hair));
   hair.position.y = 1.68; body.add(hair);
 
@@ -389,7 +399,16 @@ function makeCharacter(skin) {
   handAttach.position.set(0, -0.5, 0.05);
   rightArm.add(handAttach);
 
-  return { group: g, body, leftArm, rightArm, leftLeg, rightLeg, handAttach, head };
+  return { group: g, body, leftArm, rightArm, leftLeg, rightLeg, handAttach, head, facePlane };
+}
+
+// Tsutomu's face photo. Paste a data:image/... URI here to put his real face on the
+// player model and in the face-cam wipe; leave empty to fall back to a flat skin tone.
+const TSUTOMU_FACE_DATA_URI = "";
+let tsutomuFaceTexture = null;
+if (TSUTOMU_FACE_DATA_URI) {
+  tsutomuFaceTexture = new THREE.TextureLoader().load(TSUTOMU_FACE_DATA_URI);
+  tsutomuFaceTexture.encoding = THREE.sRGBEncoding;
 }
 
 const CLUB_GEO = new THREE.CylinderGeometry(0.05, 0.06, 0.85, 6);
@@ -409,7 +428,7 @@ const player = {
   hasClub: false, clubMesh: null,
   attackCd: 0, attackSwing: 0,
 };
-const playerChar = makeCharacter({ shirt: 0xcf5a3a, pants: 0x2a2a3a, skin: 0xe8b98a, hair: 0x1a1a1a });
+const playerChar = makeCharacter({ shirt: 0xcf5a3a, pants: 0x2a2a3a, skin: 0xe8b98a, hair: 0x1a1a1a, faceTexture: tsutomuFaceTexture });
 scene.add(playerChar.group);
 
 let camYaw = Math.PI;
@@ -418,6 +437,39 @@ const camDist = 4.4, camHeight = 2.0;
 
 function playerForward() {
   return new THREE.Vector3(Math.sin(camYaw), 0, Math.cos(camYaw));
+}
+
+// ---------------------------------------------------------------
+// Face cam: a second camera that always frames the player's face
+// head-on, rendered as a small wipe above the D-pad.
+// ---------------------------------------------------------------
+const faceCamEl = document.getElementById('faceCam');
+const faceCamera = new THREE.PerspectiveCamera(38, 1, 0.05, 4);
+function updateFaceCamera() {
+  const fx = Math.sin(player.yaw), fz = Math.cos(player.yaw);
+  const headX = player.x + fx * 0.17, headZ = player.z + fz * 0.17, headY = player.y + 1.55;
+  const dist = 0.85;
+  faceCamera.position.set(headX + fx * dist, headY, headZ + fz * dist);
+  faceCamera.lookAt(headX, headY, headZ);
+}
+function renderFaceCam() {
+  const rect = faceCamEl.getBoundingClientRect();
+  if (rect.width < 1 || rect.height < 1) return;
+  updateFaceCamera();
+  // three.js setViewport/setScissor multiply by the renderer's pixel ratio internally,
+  // so these must be CSS pixels, not device pixels (do NOT pre-multiply by devicePixelRatio).
+  const cssH = renderer.domElement.clientHeight;
+  const x = rect.left;
+  const y = cssH - rect.top - rect.height;
+  const w = rect.width, h = rect.height;
+  faceCamera.aspect = w / h;
+  faceCamera.updateProjectionMatrix();
+  renderer.setScissorTest(true);
+  renderer.setViewport(x, y, w, h);
+  renderer.setScissor(x, y, w, h);
+  renderer.render(scene, faceCamera);
+  renderer.setScissorTest(false);
+  renderer.setViewport(0, 0, renderer.domElement.clientWidth, renderer.domElement.clientHeight);
 }
 
 // ---------------------------------------------------------------
@@ -531,42 +583,26 @@ function clampToWorld(pos) {
 }
 
 // ---------------------------------------------------------------
-// Input: touch joystick + look pad + buttons + keyboard
+// Input: D-pad + look pad + buttons + keyboard
 // ---------------------------------------------------------------
-const input = { moveX: 0, moveY: 0, action: false, jump: false };
+const input = { action: false, jump: false };
 const keys = {};
 addEventListener('keydown', e => { keys[e.code] = true; });
 addEventListener('keyup', e => { keys[e.code] = false; });
 
-const joyBase = document.getElementById('joyBase');
-const joyKnob = document.getElementById('joyKnob');
-let joyId = null, joyCenter = { x: 0, y: 0 };
-const JOY_R = 46;
-
-function joyStart(e) {
-  if (joyId !== null) return;
-  joyId = e.pointerId;
-  const r = joyBase.getBoundingClientRect();
-  joyCenter = { x: r.left + r.width / 2, y: r.top + r.height / 2 };
-  try { joyBase.setPointerCapture(joyId); } catch (err) {}
+const dpad = { up: false, down: false, left: false, right: false };
+function bindDpadBtn(id, key) {
+  const el = document.getElementById(id);
+  const set = v => e => { e.preventDefault(); dpad[key] = v; };
+  el.addEventListener('pointerdown', set(true));
+  el.addEventListener('pointerup', set(false));
+  el.addEventListener('pointercancel', set(false));
+  el.addEventListener('pointerleave', set(false));
 }
-function joyMove(e) {
-  if (e.pointerId !== joyId) return;
-  let dx = e.clientX - joyCenter.x, dy = e.clientY - joyCenter.y;
-  const len = Math.hypot(dx, dy);
-  if (len > JOY_R) { dx = dx / len * JOY_R; dy = dy / len * JOY_R; }
-  joyKnob.style.transform = `translate(-50%,-50%) translate(${dx}px,${dy}px)`;
-  input.moveX = dx / JOY_R; input.moveY = dy / JOY_R;
-}
-function joyEnd(e) {
-  if (e.pointerId !== joyId) return;
-  joyId = null; input.moveX = 0; input.moveY = 0;
-  joyKnob.style.transform = 'translate(-50%,-50%)';
-}
-joyBase.addEventListener('pointerdown', joyStart);
-joyBase.addEventListener('pointermove', joyMove);
-joyBase.addEventListener('pointerup', joyEnd);
-joyBase.addEventListener('pointercancel', joyEnd);
+bindDpadBtn('dpadUp', 'up');
+bindDpadBtn('dpadDown', 'down');
+bindDpadBtn('dpadLeft', 'left');
+bindDpadBtn('dpadRight', 'right');
 
 const lookPad = document.getElementById('lookPad');
 let lookId = null, lastLook = { x: 0, y: 0 };
@@ -859,11 +895,11 @@ const clock = new THREE.Clock();
 let walkT = 0;
 
 function updatePlayer(dt) {
-  let mx = input.moveX, my = input.moveY;
-  if (keys['KeyW'] || keys['ArrowUp']) my -= 1;
-  if (keys['KeyS'] || keys['ArrowDown']) my += 1;
-  if (keys['KeyA'] || keys['ArrowLeft']) mx -= 1;
-  if (keys['KeyD'] || keys['ArrowRight']) mx += 1;
+  let mx = 0, my = 0;
+  if (keys['KeyW'] || keys['ArrowUp'] || dpad.up) my -= 1;
+  if (keys['KeyS'] || keys['ArrowDown'] || dpad.down) my += 1;
+  if (keys['KeyA'] || keys['ArrowLeft'] || dpad.left) mx -= 1;
+  if (keys['KeyD'] || keys['ArrowRight'] || dpad.right) mx += 1;
   const len = Math.hypot(mx, my);
   if (len > 1) { mx /= len; my /= len; }
 
@@ -1072,6 +1108,7 @@ function animate() {
   if (!karaokeUI.classList.contains('hidden')) updateKaraoke(dt);
 
   renderer.render(scene, camera);
+  renderFaceCam();
 }
 animate();
 
