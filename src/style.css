@@ -1,0 +1,140 @@
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body {
+  margin: 0; padding: 0; width: 100%; height: 100%;
+  overflow: hidden; background: #0a0a12;
+  font-family: "Hiragino Sans", "Yu Gothic", "Meiryo", sans-serif;
+  color: #fff; user-select: none; -webkit-user-select: none;
+  touch-action: none;
+}
+#c { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+
+.hidden { display: none !important; }
+
+/* ---------- Title ---------- */
+#titleScreen {
+  position: fixed; inset: 0; z-index: 50;
+  display: flex; align-items: center; justify-content: center;
+  background: radial-gradient(circle at 50% 30%, #2a1e2e 0%, #0a0a12 75%);
+}
+.titleCard { text-align: center; padding: 24px; max-width: 90vw; }
+.titleCard h1 {
+  font-size: clamp(28px, 8vw, 46px); margin: 0 0 4px;
+  color: #ffcf4d; text-shadow: 0 0 12px rgba(255,180,60,0.6), 2px 2px 0 #5a2d00;
+  letter-spacing: 2px;
+}
+.titleCard .sub { color: #e08cc9; margin: 0 0 18px; font-size: clamp(12px,3.5vw,15px); }
+.titleDesc { font-size: clamp(11px, 3.2vw, 14px); line-height: 1.9; color: #ddd; margin-bottom: 24px; }
+#startBtn {
+  font-size: clamp(16px, 4.5vw, 20px); padding: 14px 36px; border-radius: 40px;
+  border: none; background: linear-gradient(180deg,#ffd76a,#ff9d3d); color: #3a1a00;
+  font-weight: bold; box-shadow: 0 6px 0 #a35a00, 0 8px 18px rgba(0,0,0,0.5);
+  animation: pulse 1.6s ease-in-out infinite;
+}
+#startBtn:active { transform: translateY(4px); box-shadow: 0 2px 0 #a35a00; }
+@keyframes pulse { 0%,100%{transform:scale(1);} 50%{transform:scale(1.05);} }
+.titleHint { margin-top: 16px; font-size: 11px; color: #888; }
+
+/* ---------- HUD ---------- */
+#hud { position: fixed; inset: 0; z-index: 20; pointer-events: none; }
+.statRow {
+  position: absolute; top: max(10px, env(safe-area-inset-top)); left: 10px;
+  display: flex; gap: 10px; align-items: center;
+}
+.stat {
+  background: rgba(10,10,20,0.55); border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 20px; padding: 6px 12px; font-size: 13px; display: flex; align-items: center; gap: 6px;
+  backdrop-filter: blur(3px);
+}
+.stat.money { color: #ffe07a; font-weight: bold; }
+.gaugeBack { width: 70px; height: 8px; background: rgba(255,255,255,0.15); border-radius: 5px; overflow: hidden; }
+.gaugeFill { height: 100%; width: 0%; border-radius: 5px; transition: width 0.3s; }
+.peeFill { background: linear-gradient(90deg,#7ad1ff,#ffd166); }
+.energyFill { background: linear-gradient(90deg,#8effa1,#3ddc84); }
+
+.toast {
+  position: absolute; top: 60px; left: 50%; transform: translateX(-50%);
+  background: rgba(0,0,0,0.7); padding: 8px 18px; border-radius: 20px; font-size: 13px;
+  white-space: nowrap; transition: opacity 0.3s;
+}
+.promptBox {
+  position: absolute; bottom: 130px; left: 50%; transform: translateX(-50%);
+  background: rgba(0,0,0,0.6); border: 1px solid rgba(255,220,120,0.5);
+  padding: 8px 16px; border-radius: 12px; font-size: 13px; text-align: center;
+}
+
+/* ---------- Touch controls ---------- */
+#touchLayer { position: fixed; inset: 0; z-index: 25; pointer-events: none; }
+#lookPad { position: absolute; inset: 0; right: 0; pointer-events: auto; }
+.joyBase {
+  position: absolute; left: max(24px, env(safe-area-inset-left));
+  bottom: max(28px, env(safe-area-inset-bottom));
+  width: 108px; height: 108px; border-radius: 50%;
+  background: rgba(255,255,255,0.08); border: 2px solid rgba(255,255,255,0.25);
+  pointer-events: auto;
+}
+.joyKnob {
+  position: absolute; left: 50%; top: 50%; width: 48px; height: 48px; border-radius: 50%;
+  background: rgba(255,255,255,0.4); border: 2px solid rgba(255,255,255,0.6);
+  transform: translate(-50%,-50%);
+}
+.roundBtn {
+  position: absolute; border-radius: 50%; border: 2px solid rgba(255,255,255,0.35);
+  background: rgba(255,120,60,0.35); color: #fff; font-size: 14px; font-weight: bold;
+  pointer-events: auto;
+}
+.actionBtn {
+  right: max(26px, env(safe-area-inset-right)); bottom: max(58px, env(safe-area-inset-bottom));
+  width: 80px; height: 80px; background: rgba(255,150,50,0.45);
+}
+.jumpBtn {
+  right: max(24px, env(safe-area-inset-right)); bottom: max(150px, calc(env(safe-area-inset-bottom) + 92px));
+  width: 54px; height: 54px; background: rgba(120,180,255,0.35); font-size: 12px;
+}
+
+/* ---------- Minigames ---------- */
+.minigame {
+  position: fixed; inset: 0; z-index: 40; display: flex; align-items: flex-end; justify-content: center;
+  background: rgba(0,0,0,0.35); pointer-events: auto;
+}
+.mgPanel {
+  width: min(94vw, 480px); margin-bottom: max(18px, env(safe-area-inset-bottom));
+  background: linear-gradient(180deg,#241a2e,#150f1c); border: 2px solid #5a3d6b;
+  border-radius: 18px 18px 14px 14px; padding: 16px 18px 20px; box-shadow: 0 -6px 30px rgba(0,0,0,0.6);
+}
+.mgPanel.small { text-align: center; }
+.mgPanel h2 { margin: 0 0 10px; font-size: 17px; color: #ffd76a; }
+.mgLine { font-size: 14px; line-height: 1.6; min-height: 44px; margin: 0 0 12px; color: #f0e6ff; }
+.mgBigBtn {
+  width: 100%; padding: 14px; font-size: 16px; font-weight: bold; border: none; border-radius: 14px;
+  background: linear-gradient(180deg,#ff9d3d,#ff6a3d); color: #2c0f00; box-shadow: 0 4px 0 #a33900;
+}
+.mgBigBtn:active { transform: translateY(3px); box-shadow: 0 1px 0 #a33900; }
+.mgFooter { display: flex; justify-content: space-between; margin-top: 10px; font-size: 12px; color: #bba7c9; }
+.mgChoices { display: flex; flex-direction: column; gap: 10px; }
+.mgChoiceBtn {
+  padding: 12px; font-size: 14px; border-radius: 12px; border: 1px solid #6a4d7b;
+  background: #33243d; color: #fff; text-align: left;
+}
+.mgChoiceBtn:active { background: #4a3357; }
+
+.rhythmBar {
+  position: relative; height: 34px; background: #0c0810; border-radius: 8px; margin-bottom: 14px;
+  border: 1px solid #4a3357; overflow: hidden;
+}
+.rhythmZone {
+  position: absolute; top: 2px; bottom: 2px; width: 18%; background: rgba(80,220,140,0.45);
+  border-left: 2px solid #6dffb0; border-right: 2px solid #6dffb0;
+}
+.rhythmMarker {
+  position: absolute; top: 0; bottom: 0; width: 4px; background: #ffe07a; box-shadow: 0 0 8px #ffe07a;
+}
+
+#fadeOverlay {
+  position: fixed; inset: 0; background: #000; opacity: 0; pointer-events: none; z-index: 60; transition: opacity 0.5s;
+}
+#fadeOverlay.show { opacity: 1; }
+
+@media (orientation: landscape) and (max-height: 500px) {
+  .actionBtn { width: 68px; height: 68px; }
+  .jumpBtn { width: 46px; height: 46px; }
+}
